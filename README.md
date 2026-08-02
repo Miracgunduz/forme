@@ -1,115 +1,121 @@
 # forme
 
-Kilo hedefi olan kullanıcılar için günlük öğün ve kalori/makro takip uygulaması. Backend + frontend altyapısının ilk sürümü.
+A full-stack daily meal and calorie/macro tracker for users working toward a weight goal.
 
-Görsel kimlik `/design-consultation` ile kuruldu — detaylar ve gerekçeler için **[DESIGN.md](./DESIGN.md)**'ye bakın (mercan+turkuaz palet, Fredoka/Plus Jakarta Sans/DM Sans tipografi, streak/konfeti mikro-etkileşimleri).
+The visual identity was built with `/design-consultation` — see **[DESIGN.md](./DESIGN.md)** for details and rationale (coral + teal palette, Fredoka/Plus Jakarta Sans/DM Sans typography, streak + confetti micro-interactions).
 
-## Klasör Yapısı
+## Folder Structure
 
 ```
 forme/
 ├── backend/                     Node.js + Express + TypeScript API
 │   ├── prisma/
-│   │   ├── schema.prisma        Veritabanı şeması (SQLite)
-│   │   └── seed.ts              Mock besin verisi + demo kullanıcı + "Fix Shake" favorisi
+│   │   ├── schema.prisma        Database schema (SQLite)
+│   │   └── seed.ts              Mock food data + demo user + "Fix Shake" favorite
 │   └── src/
-│       ├── data/foods.json              Bundled starter foods (seed data, "Fix Shake" vb.)
-│       ├── data/tr-en-food-terms.json   Türkçe→İngilizce yiyecek terimi sözlüğü (USDA aramaları için)
-│       ├── db/client.ts                 Paylaşılan Prisma client
-│       ├── types/mealType.ts            MealType union + validasyon (SQLite enum desteklemiyor)
+│       ├── data/foods.json              Bundled starter foods (seed data, "Fix Shake", etc.)
+│       ├── data/tr-en-food-terms.json   Turkish→English food term dictionary (for USDA search)
+│       ├── db/client.ts                 Shared Prisma client
+│       ├── types/mealType.ts            MealType union + validation (SQLite has no native enum)
 │       ├── services/
-│       │   ├── calorieService.ts        ⟵ Sistemin belkemiği: kalori/makro hesaplama, öğün ekleme, günlük özet
-│       │   ├── nutritionApiService.ts   USDA FoodData Central (çiğ/temel gıdalar) + Türkçe çeviri
-│       │   ├── openFoodFactsService.ts  Open Food Facts (paketli/market ürünleri, Türkiye dahil)
-│       │   └── foodSearchService.ts     İkisini birleştirip tek arama sonucu döner
+│       │   ├── calorieService.ts        ⟵ The backbone: calorie/macro calculation, logging meals, daily summary
+│       │   ├── nutritionApiService.ts   USDA FoodData Central (raw/generic foods) + Turkish translation
+│       │   ├── openFoodFactsService.ts  Open Food Facts (branded/packaged products, Turkey included)
+│       │   └── foodSearchService.ts     Merges both sources into one ranked search result
 │       ├── routes/
-│       │   ├── users.routes.ts      Kullanıcı hedefi + kilo geçmişi
-│       │   ├── foods.routes.ts      Yerel besin listesi + birleşik arama/import
-│       │   ├── meals.routes.ts      Öğüne yiyecek ekleme
-│       │   ├── favorites.routes.ts  Favori öğün oluşturma + tek tık loglama
-│       │   └── dashboard.routes.ts  Özet endpoint (progress bar + grafik verisi)
-│       └── index.ts              Express giriş noktası
+│       │   ├── users.routes.ts      User goal setup + weight history
+│       │   ├── foods.routes.ts      Local food cache + combined search/import
+│       │   ├── meals.routes.ts      Add/remove a food item on a meal
+│       │   ├── favorites.routes.ts  Create/remove a favorite meal, one-tap logging
+│       │   └── dashboard.routes.ts  Summary endpoint (progress bar + chart data + streak)
+│       └── index.ts              Express entry point
 │
 └── frontend/                    React + Vite + TypeScript + Tailwind
     └── src/
-        ├── api/client.ts        Backend'e tip güvenli fetch sarmalayıcı
-        ├── types/index.ts       Backend ile paylaşılan tipler
+        ├── api/client.ts        Type-safe fetch wrapper for the backend
+        ├── types/index.ts       Types shared with the backend
+        ├── hooks/useCountUp.ts  Animated number count-up for the calorie ring
         ├── components/
-        │   ├── CalorieProgressBar.tsx
-        │   ├── WeightLineChart.tsx     (Recharts)
-        │   ├── AddMealForm.tsx
-        │   └── FavoriteMeals.tsx       (tek tıkla favori ekleme)
-        └── pages/Dashboard.tsx   Ana özet ekranı
+        │   ├── HeroSummaryCard.tsx  Calorie ring, streak badge, macro stats, confetti on goal
+        │   ├── Confetti.tsx         Lightweight celebration burst (no external library)
+        │   ├── WeightLineChart.tsx  Weight-over-time chart (Recharts)
+        │   ├── WeightLogList.tsx    Recent weigh-ins with delete
+        │   ├── AddMealForm.tsx      Free-text food search + add to a meal
+        │   └── FavoriteMeals.tsx    One-tap favorite logging, with delete
+        └── pages/Dashboard.tsx   Main summary screen
 ```
 
-## Veritabanı Şeması (özet)
+## Database Schema (summary)
 
 - **User** — email, name, `startWeightKg`, `targetWeightKg`, `dailyCalorieGoal`
-- **WeightLog** — kullanıcı başına zaman serisi kilo kaydı (çizgi grafiği besler)
-- **Food** — yerel besin önbelleği; `caloriesPer100g`/`proteinPer100g`/`carbsPer100g`/`fatPer100g`, `source` (`mock`|`usda`|`off`), `fdcId` (USDA) ve `barcode` (Open Food Facts) alanlarıyla
-- **Meal** — bir kullanıcının bir günkü bir öğün slotu (`BREAKFAST`/`LUNCH`/`DINNER`/`SNACK`), `@@unique([userId, date, mealType])`
-- **MealItem** — bir öğüne eklenen yiyecek; makrolar **eklendiği anda snapshot'lanır** (Food kaydı sonradan değişse bile geçmiş bozulmaz)
-- **FavoriteMeal** / **FavoriteMealItem** — kullanıcının kayıtlı kombinasyonları (örn. "Fix Shake": yulaf+süt+fıstık ezmesi+muz+ceviz), tek istekle günün öğününe loglanır
+- **WeightLog** — per-user time series of weigh-ins (feeds the line chart)
+- **Food** — local food cache; `caloriesPer100g`/`proteinPer100g`/`carbsPer100g`/`fatPer100g`, plus `source` (`mock`|`usda`|`off`), `fdcId` (USDA), and `barcode` (Open Food Facts)
+- **Meal** — one meal slot (`BREAKFAST`/`LUNCH`/`DINNER`/`SNACK`) for one user on one day, `@@unique([userId, date, mealType])`
+- **MealItem** — a food logged to a meal; macros are **snapshotted at insert time** so editing a Food later never rewrites history
+- **FavoriteMeal** / **FavoriteMealItem** — a user's saved combos (e.g. "Fix Shake": oats + milk + peanut butter + banana + walnuts), logged to a day's meal in one request
 
-SQLite Prisma'da native enum desteklemediği için `MealType` `String` olarak saklanır ve uygulama katmanında (`src/types/mealType.ts`) doğrulanır — ileride Postgres'e geçişte gerçek enum'a çevrilebilir.
+SQLite has no native enum support in Prisma, so `MealType` is stored as a `String` and validated at the application layer (`src/types/mealType.ts`) — this can become a real enum after a future move to Postgres.
 
-## Yiyecek Verisi: USDA + Open Food Facts Entegrasyonu
+## Food Data: USDA + Open Food Facts Integration
 
-Kullanıcı artık sadece önceden tanımlı 12 yiyecekle sınırlı değil — arama kutusuna **herhangi bir** yemek, sebze, meyve ya da markette satılan paketli ürünü yazabilir. `AddMealForm` her tuş vuruşunda (400ms debounce ile) `GET /api/foods/search?q=` çağırır; bu da `foodSearchService.ts` üzerinden iki kaynağı paralel sorgular:
+Users aren't limited to a fixed list of 12 foods — the search box accepts **anything**: a fruit, a vegetable, a home-cooked dish, or a packaged product from the supermarket. On every keystroke (400ms debounced), `AddMealForm` calls `GET /api/foods/search?q=`, which fans out to two sources in parallel via `foodSearchService.ts`:
 
-- **USDA FoodData Central** (`nutritionApiService.ts`) — çiğ/temel gıdalar için (meyve, sebze, et, süt ürünü, tahıl): ücretsiz, resmi, laboratuvar analizli (Foundation/SR Legacy) ABD kamu veritabanı.
-- **Open Food Facts** (`openFoodFactsService.ts`) — paketli/markalı ürünler için: ücretsiz, anahtar gerektirmeyen, küresel/kullanıcı katkılı ürün veritabanı. **USDA'nın markalı ürün verisi neredeyse tamamen ABD merkezli olduğundan Ülker, Torku, Eti gibi Türk marketi ürünlerini bulamıyordu** — Open Food Facts bu boşluğu dolduruyor (test: "Torku" araması gerçek Torku ürünlerini, kalorileriyle birlikte buluyor; USDA'da bu marka hiç yok).
+- **USDA FoodData Central** (`nutritionApiService.ts`) — for raw/generic foods (fruit, veg, meat, dairy, grains): a free, official, lab-analyzed (Foundation/SR Legacy) US government database.
+- **Open Food Facts** (`openFoodFactsService.ts`) — for branded/packaged products: a free, keyless, global, crowd-sourced product database. **USDA's branded-product data is almost entirely US-centric, so it had no coverage of Turkish supermarket brands like Ülker, Torku, or Eti** — Open Food Facts fills that gap (verified live: searching "Torku" returns real Torku products with real calorie data; USDA has none of that brand at all).
 
-Sonuçlar birleştirilip döner: USDA'nın çiğ/jenerik eşleşmesi (varsa) önce, market ürünleri sonra listelenir — böylece "elma" yazınca önce gerçek elmayı, "Torku Banada" yazınca gerçek ürünü görürsün.
+Results are merged and returned together: USDA's raw/generic match (if any) comes first, packaged products follow — so typing "elma" (apple) surfaces the real fruit first, and "Torku Banada" surfaces the real product.
 
-**Dürüstlük notu — "%100 doğru" hakkında:** Hiçbir veritabanı, elinizdeki gerçek bir muzun kalorisinin *tam olarak* kaç olduğunu garanti edemez; doğal ürünler olgunluğa, çeşide, pişirme yöntemine göre değişir. Paketli ürünlerde ise veri üreticinin etiketinden geliyor (USDA'da resmi, Open Food Facts'te kullanıcı girişi — bu yüzden ara sıra eksik/hatalı kayıt olabilir; `openFoodFactsService.ts` kalori verisi olmayan/sıfır olan kayıtları otomatik eliyor). Sistemin garanti ettiği şey: sayıların bir tahminden değil, **gerçek bir referans kaynağından** geldiğidir — pratikte ulaşılabilecek en güvenilir yöntem budur.
+**Honesty note on "100% accurate":** no database can guarantee the *exact* calorie count of the specific banana in your hand — natural foods vary with ripeness, variety, and preparation. For packaged goods, the numbers come from the manufacturer's label (official on USDA, crowd-submitted on Open Food Facts — which occasionally means a missing or stale entry; `openFoodFactsService.ts` automatically filters out entries with no calorie data or zero calories). What this system does guarantee is that every number comes from a **real reference source**, not a guess — the most reliable approach realistically available.
 
-**Sıralama kalitesi:** USDA ham metin eşleşmesine göre sıralıyor, bu da "elma" aramasında düz elmayı değil "Croissants, apple" gibi bileşik yemekleri öne çıkarabiliyordu (5 kata varan kalori hatası riski). `nutritionApiService.ts` içindeki `rankGenericResults` bunu düzeltmek için jenerik/çiğ girdileri (az tanımlayıcılı, "raw" içeren) öne alan bir puanlama uyguluyor.
+**Ranking quality:** USDA ranks by raw text-match score, which could surface a composite dish like "Croissants, apple" ahead of a plain apple for a query like "elma" — a real risk of a 5x calorie error. `rankGenericResults` in `nutritionApiService.ts` re-ranks a wider candidate pool toward generic/raw entries (fewer descriptors, containing "raw") to fix this.
 
-**Türkçe girdi desteği:** USDA sadece İngilizce içerik indeksliyor; Open Food Facts sorguyu olduğu gibi (Türkçe) alıyor çünkü ürün isimleri zaten Türkçe kayıtlı. Bu yüzden USDA'ya giden sorgu önce `src/data/tr-en-food-terms.json` sözlüğünden (~90 yaygın Türkçe yiyecek terimi) İngilizceye çevriliyor, Open Food Facts'e giden sorgu ise orijinal haliyle gidiyor.
+**Turkish input support:** USDA only indexes English content, while Open Food Facts takes the query as-is since product names are already stored in Turkish. So the query sent to USDA is first translated via `src/data/tr-en-food-terms.json` (~90 common Turkish food terms), while the query sent to Open Food Facts goes through unchanged.
 
-**Akış:** arama sonucundan bir öğe seçilince `POST /api/foods/import` o kaydı (`source`+`externalId` ile — USDA için `fdcId`, Open Food Facts için barkod) yerel `Food` tablosuna alır (aynı ürün tekrar seçilirse yeni satır açmaz), ardından normal `addMealItem` akışı üzerinden makrolar hesaplanıp öğüne eklenir — `calorieService.ts` hiç değişmedi.
+**Flow:** picking a search result calls `POST /api/foods/import`, which upserts that record (keyed by `source`+`externalId` — `fdcId` for USDA, barcode for Open Food Facts) into the local `Food` table (re-selecting the same product never creates a duplicate row), then the normal `addMealItem` flow computes macros and logs it — `calorieService.ts` never had to change.
 
-**Önemli — DEMO_KEY sınırı (sadece USDA için):** `.env`'de anahtar verilmezse USDA'nın herkese açık `DEMO_KEY`'i kullanılır; bu **saatte 30, günde 50 istekle** sınırlıdır. Open Food Facts anahtar gerektirmediği için bu sınır ondan etkilenmez. Ücretsiz kendi USDA anahtarınızı almak 1 dakika sürer:
+**Note — USDA `DEMO_KEY` limit:** without a key in `.env`, USDA's public `DEMO_KEY` is used, which is capped at **30 requests/hour, 50/day**. Open Food Facts needs no key, so it's unaffected by this limit. Getting your own free USDA key takes about a minute:
 
-1. https://fdc.nal.usda.gov/api-key-signup adresinden ücretsiz kayıt olun
-2. Gelen anahtarı `backend/.env` dosyasında `USDA_API_KEY=...` olarak ayarlayın
-3. Backend'i yeniden başlatın
+1. Sign up for free at https://fdc.nal.usda.gov/api-key-signup
+2. Set the key in `backend/.env` as `USDA_API_KEY=...`
+3. Restart the backend
 
-## Kurulum ve Çalıştırma
+## Setup & Running
 
 ```bash
 # Backend
 cd backend
 npm install
 cp .env.example .env
-npx prisma migrate dev --name init   # DB oluşturur + seed çalıştırır
+npx prisma migrate dev --name init   # creates the DB + runs the seed
 npm run dev                          # http://localhost:4000
 
-# Frontend (ayrı terminalde)
+# Frontend (separate terminal)
 cd frontend
 npm install
 npm run dev                          # http://localhost:5173 (proxy: /api -> :4000)
 ```
 
-Seed sonrası demo kullanıcı: `demo@forme.app` (id=1), başlangıç 95kg → hedef 80kg, günlük 2500 kcal hedefi, 5 haftalık kilo geçmişi ve "Fix Shake" favorisi hazır gelir.
+After seeding, a demo user is ready: `demo@forme.app` (id=1), starting weight 95kg → target 80kg, 2500 kcal daily goal, 5 weeks of weight history, and a "Fix Shake" favorite.
 
-## API Uç Noktaları
+## API Endpoints
 
-| Method | Path | Açıklama |
+| Method | Path | Description |
 |---|---|---|
-| POST | `/api/users` | Yeni kullanıcı + başlangıç/hedef kilo |
-| GET/POST | `/api/users/:id/weight-logs` | Kilo geçmişi okuma/ekleme |
-| GET | `/api/foods?q=` | Yerel besin önbelleğinde arama (mock + daha önce içe aktarılanlar) |
-| GET | `/api/foods/search?q=` | USDA + Open Food Facts'ta canlı serbest metin arama (Türkçe ve market ürünleri destekli) |
-| POST | `/api/foods/import` | Seçilen sonucu yerel `Food` tablosuna al (idempotent, `source`+`externalId` ile) |
-| POST | `/api/meals/items` | Bir öğüne yiyecek ekle (kalori/makro otomatik hesaplanır) |
-| GET/POST | `/api/favorites` | Favori öğün listeleme/oluşturma |
-| POST | `/api/favorites/:id/log` | Favoriyi tek istekle bugüne logla |
-| GET | `/api/dashboard?userId=&date=` | Progress bar + grafik için günlük özet |
+| POST | `/api/users` | Create a user with starting/target weight |
+| GET/POST | `/api/users/:id/weight-logs` | Read/add weight history |
+| DELETE | `/api/users/:id/weight-logs/:logId` | Remove a weigh-in |
+| GET | `/api/foods?q=` | Search the local food cache (mock + previously imported) |
+| GET | `/api/foods/search?q=` | Live free-text search across USDA + Open Food Facts (Turkish and packaged products supported) |
+| POST | `/api/foods/import` | Import a picked search result into the local `Food` table (idempotent, keyed by `source`+`externalId`) |
+| POST | `/api/meals/items` | Log a food to a meal (calories/macros computed automatically) |
+| DELETE | `/api/meals/items/:id` | Remove a logged food item |
+| GET/POST | `/api/favorites` | List/create favorite meals |
+| POST | `/api/favorites/:id/log` | Log a favorite's full contents to today in one request |
+| DELETE | `/api/favorites/:id` | Remove a favorite meal |
+| GET | `/api/dashboard?userId=&date=` | Daily summary for the progress bar, macro breakdown, chart, and streak |
 
-## Sonraki Adımlar (bilinçli olarak kapsam dışı bırakıldı)
+## Next Steps (deliberately out of scope)
 
-- Kimlik doğrulama / oturum yönetimi (şu an tek demo kullanıcı üzerinden çalışıyor)
-- USDA arama sonuçlarının önbelleklenmesi (aynı sorgu tekrar tekrar sorulduğunda DEMO_KEY kotasını hızlı tüketiyor)
-- Prisma 5 → 7 majör sürüm güncellemesi (migrate sırasında uyarı verdi)
+- Authentication / session management (currently runs on a single demo user)
+- Caching USDA search results (repeated identical queries burn through the `DEMO_KEY` quota quickly)
+- Prisma 5 → 7 major version upgrade (flagged a warning during migration)
