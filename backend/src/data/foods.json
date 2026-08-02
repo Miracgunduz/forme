@@ -1,0 +1,14 @@
+[
+  { "name": "Yulaf Ezmesi (Oats)", "caloriesPer100g": 389, "proteinPer100g": 16.9, "carbsPer100g": 66.3, "fatPer100g": 6.9 },
+  { "name": "Tam Yağlı Süt", "caloriesPer100g": 61, "proteinPer100g": 3.2, "carbsPer100g": 4.8, "fatPer100g": 3.3 },
+  { "name": "Fıstık Ezmesi (Peanut Butter)", "caloriesPer100g": 588, "proteinPer100g": 25, "carbsPer100g": 20, "fatPer100g": 50 },
+  { "name": "Muz", "caloriesPer100g": 89, "proteinPer100g": 1.1, "carbsPer100g": 22.8, "fatPer100g": 0.3 },
+  { "name": "Ceviz", "caloriesPer100g": 654, "proteinPer100g": 15.2, "carbsPer100g": 13.7, "fatPer100g": 65.2 },
+  { "name": "Tavuk Göğsü (Izgara)", "caloriesPer100g": 165, "proteinPer100g": 31, "carbsPer100g": 0, "fatPer100g": 3.6 },
+  { "name": "Pirinç Pilavı", "caloriesPer100g": 130, "proteinPer100g": 2.7, "carbsPer100g": 28.2, "fatPer100g": 0.3 },
+  { "name": "Yumurta", "caloriesPer100g": 155, "proteinPer100g": 13, "carbsPer100g": 1.1, "fatPer100g": 11 },
+  { "name": "Tam Buğday Ekmeği", "caloriesPer100g": 247, "proteinPer100g": 13, "carbsPer100g": 41, "fatPer100g": 3.4 },
+  { "name": "Zeytinyağı", "caloriesPer100g": 884, "proteinPer100g": 0, "carbsPer100g": 0, "fatPer100g": 100 },
+  { "name": "Yoğurt (Tam Yağlı)", "caloriesPer100g": 61, "proteinPer100g": 3.5, "carbsPer100g": 4.7, "fatPer100g": 3.3 },
+  { "name": "Elma", "caloriesPer100g": 52, "proteinPer100g": 0.3, "carbsPer100g": 13.8, "fatPer100g": 0.2 }
+]

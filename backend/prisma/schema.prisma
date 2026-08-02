@@ -1,0 +1,108 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// SQLite has no native enum support in Prisma; mealType is validated
+// against MEAL_TYPES (src/types/mealType.ts) at the application layer instead.
+model User {
+  id                Int             @id @default(autoincrement())
+  email             String          @unique
+  name              String
+  startWeightKg     Float
+  targetWeightKg    Float
+  dailyCalorieGoal  Int             @default(2500)
+  createdAt         DateTime        @default(now())
+
+  weightLogs        WeightLog[]
+  meals             Meal[]
+  favoriteMeals     FavoriteMeal[]
+}
+
+// One row per weigh-in; powers the "weight over time" line chart.
+model WeightLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  weightKg  Float
+  loggedAt  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, loggedAt])
+}
+
+// Local cache of foods a user has actually logged. Rows come from the
+// bundled mock set (source="mock"), USDA FoodData Central (source="usda",
+// fdcId set), or Open Food Facts (source="off", barcode set) — see
+// src/services/foodSearchService.ts and src/routes/foods.routes.ts's
+// /search and /import endpoints.
+model Food {
+  id               Int      @id @default(autoincrement())
+  name             String
+  caloriesPer100g  Float
+  proteinPer100g   Float
+  carbsPer100g     Float
+  fatPer100g       Float
+  fdcId            Int?     @unique
+  barcode          String?  @unique
+  source           String   @default("mock")
+
+  mealItems        MealItem[]
+  favoriteItems    FavoriteMealItem[]
+}
+
+// One Meal = one mealType slot on one day (e.g. "Ali's lunch on 2026-08-01").
+model Meal {
+  id        Int        @id @default(autoincrement())
+  userId    Int
+  mealType  String     // one of MEAL_TYPES (src/types/mealType.ts)
+  date      DateTime   // stored as the day's date (time truncated to 00:00) for grouping
+  createdAt DateTime   @default(now())
+
+  user      User       @relation(fields: [userId], references: [id])
+  items     MealItem[]
+
+  @@unique([userId, date, mealType])
+}
+
+// Macros are snapshotted at insert time so editing a Food later never
+// rewrites history for meals already logged.
+model MealItem {
+  id             Int    @id @default(autoincrement())
+  mealId         Int
+  foodId         Int
+  quantityGrams  Float
+  calories       Float
+  protein        Float
+  carbs          Float
+  fat            Float
+
+  meal           Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food           Food   @relation(fields: [foodId], references: [id])
+}
+
+// A user's saved combo (e.g. "Fix Shake": oats + milk + peanut butter + banana + walnuts)
+// that can be logged to a mealType slot in one tap.
+model FavoriteMeal {
+  id        Int                 @id @default(autoincrement())
+  userId    Int
+  name      String
+  createdAt DateTime            @default(now())
+
+  user      User                @relation(fields: [userId], references: [id])
+  items     FavoriteMealItem[]
+}
+
+model FavoriteMealItem {
+  id              Int          @id @default(autoincrement())
+  favoriteMealId  Int
+  foodId          Int
+  quantityGrams   Float
+
+  favoriteMeal    FavoriteMeal @relation(fields: [favoriteMealId], references: [id], onDelete: Cascade)
+  food            Food         @relation(fields: [foodId], references: [id])
+}
